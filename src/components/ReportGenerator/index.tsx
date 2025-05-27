@@ -62,8 +62,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
   const openNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     notification[type]({
       message,
-      description: '', // Optional: Add more detail here
-      placement: 'topRight', // Optional
+      description: '',
+      placement: 'topRight', 
+
     });
   };
 
@@ -137,8 +138,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
       payload: processedPayloads
     };
 
+    const url = import.meta.env.VITE_BASE_URL;
     try {
-      const response = await axios.post('https://e583-122-173-24-164.ngrok-free.app/api/validate', reportData, {
+      const response = await axios.post(url + '/api/validate', reportData, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -197,7 +199,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
             <StyledButton
               icon={isLoading ? <LoadingOutlined style={{ color: 'var(--color-primary)' }} spin /> : <FileTextOutlined />}
               onClick={generateReport}
-              disabled={isGenerateButtonDisabled}
+            disabled={isGenerateButtonDisabled}
             >
               Generate Report
             </StyledButton>
@@ -255,7 +257,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
           <StyledCard title="Report">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div >
-                
+
                 {Object.keys(report).length > 0 ? (
                   Object.entries(report).map(([flowKey, errors], index) => (
                     <div key={index} style={{ marginBottom: '1rem' }}>

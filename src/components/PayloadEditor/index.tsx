@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Collapse, Empty } from 'antd';
+import {  Button, Collapse, Empty, message } from 'antd';
 import styled from 'styled-components';
 import AceEditor from 'react-ace';
 import 'ace-builds/src-noconflict/mode-json';
 import 'ace-builds/src-noconflict/theme-tomorrow';
 import { flowSequences } from '../../constants/flowSequences';
 import { ApiSequence, type FlowPayload } from '../../types';
+import { CopyOutlined, UploadOutlined } from '@ant-design/icons';
 
 const { Panel } = Collapse;
 
@@ -20,6 +21,15 @@ const EditorTitle = styled.h3`
   margin-bottom: 1rem;
   color: var(--color-primary);
 `;
+const ButtonWrapper = styled.div`
+  margin-top: 12px;
+    display: flex
+;
+
+    align-items: center;
+    justify-content: end;
+    gap: 12px;
+`;
 
 const StyledCollapse = styled(Collapse)`
   background: var(--color-white);
@@ -28,6 +38,18 @@ const StyledCollapse = styled(Collapse)`
     font-weight: 500;
     color: var(--color-primary) !important;
   }
+`;
+const StyledButton = styled(Button)`
+  background-color: var(--color-primary);
+  color:var(--color-white);
+  &:hover{
+    background-color: var(--color-white) !important;
+    border-color:var(--color-primary) !important;
+    color:var(--color-primary) !important;
+  }
+    
+  
+
 `;
 
 const EditorWrapper = styled.div`
@@ -58,7 +80,7 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
         initialPayloads[callName] = initialPayloads[callName] || '{\n  \n}';
       });
       setPayloads(initialPayloads);
-   
+
     } else {
       setFlowSequence([]);
       setPayloads({});
@@ -137,6 +159,50 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
                   {jsonErrors[step]}
                 </div>
               )}
+              <ButtonWrapper style={{ marginTop: '12px' }}>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  style={{ display: 'none' }}
+                  id={`file-upload-${step}`}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        try {
+                          const json = JSON.parse(event?.target?.result as string);
+                          handleEditorChange(JSON.stringify(json, null, 2), step);
+                        } catch (err) {
+                          alert('Invalid JSON file.');
+                        }
+                      };
+                      reader.readAsText(file);
+                    }
+                    e.target.value = ''; // reset so same file can be uploaded again if needed
+                  }}
+                />
+                <StyledButton
+                  onClick={() => document.getElementById(`file-upload-${step}`)?.click()}
+                
+                  icon={<UploadOutlined />}
+                >
+                  Upload JSON
+                </StyledButton>
+                <StyledButton
+                  icon={<CopyOutlined />}
+                  onClick={() => {
+                    const payload = payloads[ApiSequence[step]] || '{}';
+                    navigator.clipboard.writeText(payload)
+                      .then(() => {
+                        message.success('Copied to clipboard!');
+                      })
+
+                  }}
+                />
+
+            
+              </ButtonWrapper>
             </EditorWrapper>
           </Panel>
         ))}
