@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import {  Button, Collapse, Empty, message } from 'antd';
-import styled from 'styled-components';
-import AceEditor from 'react-ace';
-import 'ace-builds/src-noconflict/mode-json';
-import 'ace-builds/src-noconflict/theme-tomorrow';
-import { flowSequences } from '../../constants/flowSequences';
-import { ApiSequence, type FlowPayload } from '../../types';
-import { CopyOutlined, UploadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from "react";
+import { Button, Collapse, Empty, message } from "antd";
+import styled from "styled-components";
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-json";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import {
+  flowSequences,
+  getDomainCategory,
+} from "../../constants/flowSequences";
+import {
+  ApiSequence,
+  mobilitySequence,
+  type FlowPayload,
+} from "../../types";
+import { CopyOutlined, UploadOutlined } from "@ant-design/icons";
 
 const { Panel } = Collapse;
 
@@ -15,7 +22,7 @@ const EditorContainer = styled.div`
   overflow-y: auto;
   padding: 1rem;
   background-color: var(--color-white);
- `;
+`;
 
 const EditorTitle = styled.h3`
   margin-bottom: 1rem;
@@ -23,17 +30,16 @@ const EditorTitle = styled.h3`
 `;
 const ButtonWrapper = styled.div`
   margin-top: 12px;
-    display: flex
-;
+  display: flex;
 
-    align-items: center;
-    justify-content: end;
-    gap: 12px;
+  align-items: center;
+  justify-content: end;
+  gap: 12px;
 `;
 
 const StyledCollapse = styled(Collapse)`
   background: var(--color-white);
-  
+
   .ant-collapse-header {
     font-weight: 500;
     color: var(--color-primary) !important;
@@ -41,15 +47,12 @@ const StyledCollapse = styled(Collapse)`
 `;
 const StyledButton = styled(Button)`
   background-color: var(--color-primary);
-  color:var(--color-white);
-  &:hover{
+  color: var(--color-white);
+  &:hover {
     background-color: var(--color-white) !important;
-    border-color:var(--color-primary) !important;
-    color:var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
   }
-    
-  
-
 `;
 
 const EditorWrapper = styled.div`
@@ -60,46 +63,62 @@ const EditorWrapper = styled.div`
 
 interface PayloadEditorProps {
   selectedFlow: string;
+  domain: string;
   onPayloadChange: (payloads: FlowPayload) => void;
 }
 
-const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadChange }) => {
+const PayloadEditor: React.FC<PayloadEditorProps> = ({
+  selectedFlow,
+  onPayloadChange,
+  domain,
+}) => {
   const [payloads, setPayloads] = useState<FlowPayload>({});
-  const [flowSequence, setFlowSequence] = useState<ApiSequence[]>([]);
+  const [flowSequence, setFlowSequence] = useState<string[]>([]);
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({});
-
+  const [sequenceEnum, setSequenceEnum] = useState<any>();
+  const domainCategory = getDomainCategory(domain);
+  useEffect(() => {
+    if (domainCategory === "mobility") {
+      setSequenceEnum(mobilitySequence);
+    }
+    //  else if (domainCategory === "finance") {
+    //   setSequenceEnum(FisApiSequence);
+    // }
+    else {
+      setSequenceEnum(ApiSequence);
+    }
+  }, [domain]);
 
   useEffect(() => {
     if (selectedFlow && flowSequences[selectedFlow]) {
       setFlowSequence(flowSequences[selectedFlow]);
-
-
       const initialPayloads: FlowPayload = {};
       flowSequences[selectedFlow].forEach((step) => {
-        const callName = ApiSequence[step];
-        initialPayloads[callName] = initialPayloads[callName] || '{\n  \n}';
+        const callName = sequenceEnum[step as keyof typeof sequenceEnum];
+        initialPayloads[callName] = initialPayloads[callName] || "{\n  \n}";
       });
       setPayloads(initialPayloads);
-
     } else {
       setFlowSequence([]);
       setPayloads({});
     }
-  }, [selectedFlow]);
+  }, [selectedFlow, sequenceEnum]);
 
-  const handleEditorChange = (value: string, step: ApiSequence) => {
-    const callName = ApiSequence[step];
+  const handleEditorChange = (value: string, step: string) => {
+    const callName = sequenceEnum[step as keyof typeof sequenceEnum];
     const updatedPayloads = {
       ...payloads,
-      [callName]: value
+      [callName]: value,
     };
-    setPayloads(updatedPayloads)
+    setPayloads(updatedPayloads);
     try {
       const parsedPayloads: FlowPayload = {};
-      Object.entries(updatedPayloads).forEach(([key, val]) => {
-        if (val.trim() === '') return;
-        parsedPayloads[key as ApiSequence] = JSON.parse(val);
-      });
+      Object.entries(updatedPayloads as Record<string, string>).forEach(
+        ([key, val]) => {
+          if (val.trim() === "") return;
+          parsedPayloads[key as ApiSequence] = JSON.parse(val);
+        }
+      );
       onPayloadChange(parsedPayloads);
       setJsonErrors((prev) => {
         const { [callName]: _, ...rest } = prev;
@@ -108,7 +127,9 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
     } catch (err) {
       setJsonErrors((prev) => ({
         ...prev,
-        [callName]: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`
+        [callName]: `Invalid JSON: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       }));
       // Optional: Log or display an error if invalid
 
@@ -132,13 +153,19 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
       <EditorTitle>API Call Payloads</EditorTitle>
       <StyledCollapse accordion>
         {flowSequence.map((step) => (
-          <Panel header={`${ApiSequence[step]}`} key={step}>
+          <Panel
+            header={`${sequenceEnum[step as keyof typeof sequenceEnum]}`}
+            key={step}
+          >
             <EditorWrapper>
               <AceEditor
                 mode="json"
                 theme="tomorrow"
                 name={`editor-${step}`}
-                value={payloads[ApiSequence[step]] || '{\n  \n}'}
+                value={
+                  payloads[sequenceEnum[step as keyof typeof sequenceEnum]] ||
+                  "{\n  \n}"
+                }
                 onChange={(value) => handleEditorChange(value, step)}
                 width="100%"
                 height="250px"
@@ -155,15 +182,17 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
                 }}
               />
               {jsonErrors[step] && (
-                <div style={{ color: 'red', marginTop: '8px', fontSize: '0.9rem' }}>
+                <div
+                  style={{ color: "red", marginTop: "8px", fontSize: "0.9rem" }}
+                >
                   {jsonErrors[step]}
                 </div>
               )}
-              <ButtonWrapper style={{ marginTop: '12px' }}>
+              <ButtonWrapper style={{ marginTop: "12px" }}>
                 <input
                   type="file"
                   accept=".json,application/json"
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                   id={`file-upload-${step}`}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -171,20 +200,26 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
                       const reader = new FileReader();
                       reader.onload = (event) => {
                         try {
-                          const json = JSON.parse(event?.target?.result as string);
-                          handleEditorChange(JSON.stringify(json, null, 2), step);
+                          const json = JSON.parse(
+                            event?.target?.result as string
+                          );
+                          handleEditorChange(
+                            JSON.stringify(json, null, 2),
+                            step
+                          );
                         } catch (err) {
-                          alert('Invalid JSON file.');
+                          alert("Invalid JSON file.");
                         }
                       };
                       reader.readAsText(file);
                     }
-                    e.target.value = ''; // reset so same file can be uploaded again if needed
+                    e.target.value = ""; // reset so same file can be uploaded again if needed
                   }}
                 />
                 <StyledButton
-                  onClick={() => document.getElementById(`file-upload-${step}`)?.click()}
-                
+                  onClick={() =>
+                    document.getElementById(`file-upload-${step}`)?.click()
+                  }
                   icon={<UploadOutlined />}
                 >
                   Upload JSON
@@ -192,16 +227,15 @@ const PayloadEditor: React.FC<PayloadEditorProps> = ({ selectedFlow, onPayloadCh
                 <StyledButton
                   icon={<CopyOutlined />}
                   onClick={() => {
-                    const payload = payloads[ApiSequence[step]] || '{}';
-                    navigator.clipboard.writeText(payload)
-                      .then(() => {
-                        message.success('Copied to clipboard!');
-                      })
-
+                    const payload =
+                      payloads[
+                        sequenceEnum[step as keyof typeof sequenceEnum]
+                      ] || "{}";
+                    navigator.clipboard.writeText(payload).then(() => {
+                      message.success("Copied to clipboard!");
+                    });
                   }}
                 />
-
-            
               </ButtonWrapper>
             </EditorWrapper>
           </Panel>

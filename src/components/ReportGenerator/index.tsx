@@ -1,10 +1,19 @@
-import React, { useMemo, useState } from 'react';
-import axios from 'axios';
-import { Button, Space, Typography, Card, Tooltip, notification } from 'antd';
-import { FileTextOutlined, LoadingOutlined, VerticalAlignBottomOutlined } from '@ant-design/icons';
-import styled from 'styled-components';
-import { ApiSequence, type FlowPayload, type FormData } from '../../types';
-import { flowSequences } from '../../constants/flowSequences';
+import React, { useMemo, useState } from "react";
+import axios from "axios";
+import { Button, Space, Typography, Card, Tooltip, notification } from "antd";
+import {
+  FileTextOutlined,
+  LoadingOutlined,
+  VerticalAlignBottomOutlined,
+} from "@ant-design/icons";
+import styled from "styled-components";
+import { ApiSequence, type FlowPayload, type FormData } from "../../types";
+import {
+  flowSequences,
+  getDomainCategory,
+  IgmFlows,
+  rsfFlows,
+} from "../../constants/flowSequences";
 
 const { Title } = Typography;
 
@@ -15,12 +24,10 @@ const ReportContainer = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
- 
 `;
 
 const StyledCard = styled(Card)`
   margin-bottom: 1rem;
-
 `;
 
 const ReportHeader = styled.div`
@@ -37,15 +44,12 @@ const ButtonContainer = styled.div`
 
 const StyledButton = styled(Button)`
   background-color: var(--color-primary);
-  color:var(--color-white);
-  &:hover{
+  color: var(--color-white);
+  &:hover {
     background-color: var(--color-white) !important;
-    border-color:var(--color-primary) !important;
-    color:var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
   }
-    
-  
-
 `;
 
 interface ReportGeneratorProps {
@@ -53,18 +57,23 @@ interface ReportGeneratorProps {
   payloads: FlowPayload;
 }
 
-const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads }) => {
-  const [report, setReport] = useState({})
-  const [isLoading, setisLoading] = useState(false)
+const ReportGenerator: React.FC<ReportGeneratorProps> = ({
+  formData,
+  payloads,
+}) => {
+  const [report, setReport] = useState({});
+  const [isLoading, setisLoading] = useState(false);
   const { domain, version, bppId, bapId, flowName } = formData;
+  const domainCategory = getDomainCategory(domain);
 
-
-  const openNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+  const openNotification = (
+    message: string,
+    type: "success" | "error" | "info" | "warning" = "info"
+  ) => {
     notification[type]({
       message,
-      description: '',
-      placement: 'topRight', 
-
+      description: "",
+      placement: "topRight",
     });
   };
 
@@ -74,12 +83,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
   }, [formData]);
   const arePayloadsComplete = useMemo(() => {
     const { flowName } = formData;
-
     // If no flow is selected or flow sequence doesn't exist
     if (!flowName || !flowSequences[flowName]) {
       return false;
     }
-
 
     const requiredApis = flowSequences[flowName] as ApiSequence[];
     // If there are no payloads at all
@@ -87,28 +94,24 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
       return false;
     }
 
-    // Check each API in the flow
+    // Check each API in requiredApis flow
     return requiredApis.every((api) => {
       const payloadKey = ApiSequence[api];
       const currentPayload = payloads[payloadKey];
-      const isPayloadEmpty = JSON.stringify(currentPayload).trim() === '{}' || JSON.stringify(currentPayload).trim() === '{\n  \n}';
-      if (
-        !currentPayload ||
-        isPayloadEmpty
-      ) {
+      const isPayloadEmpty =
+        JSON.stringify(currentPayload)?.trim() === "{}" ||
+        JSON.stringify(currentPayload)?.trim() === "{\n  \n}";
+      if (!currentPayload || isPayloadEmpty) {
         return false;
       }
       return true;
-
-
     });
   }, [formData, payloads]);
-
   // Button should be disabled if either form data or payloads are incomplete
   const isGenerateButtonDisabled = !isFormDataComplete || !arePayloadsComplete;
 
   const generateReport = async () => {
-    setisLoading(true)
+    setisLoading(true);
 
     // Process payloads to ensure they're proper JSON objects, not strings
     const processedPayloads: Record<string, any> = {};
@@ -117,16 +120,15 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
       try {
         // Parse the JSON string to get the actual object
         const payloadValue = payloads[key];
-        processedPayloads[key] = typeof payloadValue === 'string'
-          ? JSON.parse(payloadValue)
-          : payloadValue;
+        processedPayloads[key] =
+          typeof payloadValue === "string"
+            ? JSON.parse(payloadValue)
+            : payloadValue;
       } catch (e) {
         // If parsing fails, use the original value
         processedPayloads[key] = payloads[key];
       }
     }
-
-
 
     const reportData = {
       domain,
@@ -135,78 +137,98 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
       bap_id: bapId,
       flow: flowName,
       generatedAt: new Date().toISOString(),
-      payload: processedPayloads
+      payload: processedPayloads,
     };
 
     const url = import.meta.env.VITE_BASE_URL;
-    try {
-      const response = await axios.post(url + '/api/validate', reportData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      setReport(response.data?.response?.report)
-      openNotification("Report Generated Successfully", 'success');
+    let endpoint = "/api/validate"; // default
 
-
-      if (response.data?.response?.report) {
-        setisLoading(false)
-
-      }
-    } catch (error) {
-      setisLoading(false)
-      openNotification("Something went wrong", 'error');
-
+    if (IgmFlows.includes(flowName)) {
+      endpoint = "/api/validate/igm";
+    }
+    if (rsfFlows.includes(flowName)) {
+      endpoint = "/api/validate/rsf";
+    }
+    if (domainCategory === "mobility") {
+      endpoint = "/api/validate/trv";
+    } else if (domain === "finance") {
+      endpoint = "/api/validate/fis";
     }
 
+    try {
+      const response = await axios.post(url + endpoint, reportData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      setReport(response.data?.response?.report);
+      if (response.data?.success === true) {
+        openNotification("Logs Verified Successfully", "success");
+      } else {
+        openNotification("Report Generated Successfully", "success");
+      }
 
-
-
+      if (response.data?.response?.report) {
+        setisLoading(false);
+      }
+    } catch (error: any) {
+      setisLoading(false);
+      openNotification(error?.response?.data?.response?.message, "error");
+    }
   };
 
   const downloadReport = () => {
     // Create a downloadable file
     const dataStr = JSON.stringify(report, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const dataUri =
+      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
-    const exportFileDefaultName = `ondc-flow-${flowName}-report-${new Date().toISOString().split('T')[0]}.json`;
+    const exportFileDefaultName = `ondc-flow-${flowName}-report-${
+      new Date().toISOString().split("T")[0]
+    }.json`;
 
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
-  }
-
-
+  };
 
   return (
     <ReportContainer>
       <ReportHeader>
-        <Title level={4} style={{ margin: 0, color: 'var(--color-primary)' }}>
+        <Title level={4} style={{ margin: 0, color: "var(--color-primary)" }}>
           Report Generator
         </Title>
         <ButtonContainer>
           <Tooltip
-            color='var(--color-gray)'
+            color="var(--color-gray)"
             title={
               !isFormDataComplete
                 ? "Please fill in all form fields"
                 : !arePayloadsComplete
-                  ? "Please provide payloads for all API calls"
-                  : "Generate Report"
+                ? "Please provide payloads for all API calls"
+                : "Generate Report"
             }
           >
             <StyledButton
-              icon={isLoading ? <LoadingOutlined style={{ color: 'var(--color-primary)' }} spin /> : <FileTextOutlined />}
+              icon={
+                isLoading ? (
+                  <LoadingOutlined
+                    style={{ color: "var(--color-primary)" }}
+                    spin
+                  />
+                ) : (
+                  <FileTextOutlined />
+                )
+              }
               onClick={generateReport}
-            disabled={isGenerateButtonDisabled}
+              disabled={isGenerateButtonDisabled}
             >
               Generate Report
             </StyledButton>
           </Tooltip>
 
           <StyledButton
-
             icon={<VerticalAlignBottomOutlined />}
             onClick={() => downloadReport()}
             disabled={isGenerateButtonDisabled}
@@ -215,73 +237,82 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ formData, payloads })
           </StyledButton>
         </ButtonContainer>
       </ReportHeader>
-      {
-        formData &&
+      {formData && (
         <StyledCard title="Configuration Summary">
-          <p><strong>Domain:</strong> {formData.domain || 'Not specified'}</p>
-          <p><strong>Version:</strong> {formData.version || 'Not specified'}</p>
-          <p><strong>BPP ID:</strong> {formData.bppId || 'Not specified'}</p>
-          <p><strong>BAP ID:</strong> {formData.bapId || 'Not specified'}</p>
-          <p><strong>Flow:</strong> Flow {formData.flowName || 'Not specified'}</p>
+          <p>
+            <strong>Domain:</strong> {formData.domain || "Not specified"}
+          </p>
+          <p>
+            <strong>Version:</strong> {formData.version || "Not specified"}
+          </p>
+          <p>
+            <strong>BPP ID:</strong> {formData.bppId || "Not specified"}
+          </p>
+          <p>
+            <strong>BAP ID:</strong> {formData.bapId || "Not specified"}
+          </p>
+          <p>
+            <strong>Flow:</strong> Flow {formData.flowName || "Not specified"}
+          </p>
         </StyledCard>
-      }
+      )}
 
-      {
-        payloads &&
+      {payloads && (
         <StyledCard title="Flow Status">
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space direction="vertical" style={{ width: "100%" }}>
             {Object.keys(payloads).length > 0 ? (
               Object.keys(payloads).map((key) => (
                 <div key={key}>
                   <p>
-                    <strong>{`${key}`}:</strong>{' '}
+                    <strong>{`${key}`}:</strong>{" "}
                     {payloads[key]
-                      // && payloads[key].trim() !== '{\n  \n}' 
-                      ? '✅ Payload provided'
-                      : '❌ Payload missing'
-                    }
+                      ? // && payloads[key].trim() !== '{\n  \n}'
+                        "✅ Payload provided"
+                      : "❌ Payload missing"}
                   </p>
                 </div>
               ))
             ) : (
-              <p>No payload data available. Please select a flow and provide payloads.</p>
+              <p>
+                No payload data available. Please select a flow and provide
+                payloads.
+              </p>
             )}
           </Space>
         </StyledCard>
-      }
+      )}
 
-
-
-      {
-        report ? (
-          <StyledCard title="Report">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div >
-
-                {Object.keys(report).length > 0 ? (
-                  Object.entries(report).map(([flowKey, errors], index) => (
-                    <div key={index} style={{ marginBottom: '1rem' }}>
-                      <h3 style={{ marginBottom: '0.5rem' }}>{flowKey}</h3>
-                      {errors && typeof errors === 'object' ? (
-                        Object.entries(errors).map(([errorKey, message], i) => (
-                          <div key={i} style={{ marginLeft: '1rem', marginBottom: '0.3rem' }}>
-                            <strong>{errorKey}:</strong> <span>{message}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <p>No error details found.</p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p>No report data available. Please generate report.</p>
-                )}
-              </div>
-
-            </Space>
-          </StyledCard>) : ''
-      }
-
+      {report ? (
+        <StyledCard title="Report">
+          <Space direction="vertical" style={{ width: "100%" }}>
+            <div>
+              {Object.keys(report).length > 0 ? (
+                Object.entries(report).map(([flowKey, errors], index) => (
+                  <div key={index} style={{ marginBottom: "1rem" }}>
+                    <h3 style={{ marginBottom: "0.5rem" }}>{flowKey}</h3>
+                    {errors && typeof errors === "object" ? (
+                      Object.entries(errors).map(([errorKey, message], i) => (
+                        <div
+                          key={i}
+                          style={{ marginLeft: "1rem", marginBottom: "0.3rem" }}
+                        >
+                          <strong>{errorKey}:</strong> <span>{message}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p>No error details found.</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p>No report data available. Please generate report.</p>
+              )}
+            </div>
+          </Space>
+        </StyledCard>
+      ) : (
+        ""
+      )}
     </ReportContainer>
   );
 };

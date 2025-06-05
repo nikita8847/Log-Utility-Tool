@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import { GlobalStyle } from './styles/theme';
-import Navbar from './components/Navbar';
-import FlowForm from './components/FlowForm';
-import PayloadEditor from './components/PayloadEditor';
-import ReportGenerator from './components/ReportGenerator';
-import type { FormData as AppFormData, FlowPayload } from './types';
-import { notification } from 'antd';
+import { useState } from "react";
+import styled from "styled-components";
+import { GlobalStyle } from "./styles/theme";
+import Navbar from "./components/Navbar";
+import FlowForm from "./components/FlowForm";
+import PayloadEditor from "./components/PayloadEditor";
+import ReportGenerator from "./components/ReportGenerator";
+import type { FormData as AppFormData, FlowPayload } from "./types";
+import { notification } from "antd";
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -28,14 +28,12 @@ const BottomSection = styled.div`
   width: 100%;
   @media (max-width: 768px) {
     flex-direction: column;
-
   }
 `;
 
 const EditorSection = styled.div`
   flex: 1;
   border-right: 1px solid var(--color-light);
-  
 `;
 
 const ReportSection = styled.div`
@@ -43,28 +41,26 @@ const ReportSection = styled.div`
 `;
 
 function App() {
-  const [formData, setFormData] = useState<AppFormData>(
-    {
-      domain: '',
-      version: '',
-      bppId: '',
-      bapId: '',
-      flowName: '',
-    }
-  );
-  
+  const [formData, setFormData] = useState<AppFormData>({
+    domain: "",
+    version: "",
+    bppId: "",
+    bapId: "",
+    flowName: "",
+  });
+
   const [payloads, setPayloads] = useState<FlowPayload>({});
 
   const handleFormChange = (values: AppFormData) => {
     setFormData(values);
   };
 
-  const handlePayloadChange = (updatedPayloads: FlowPayload) => {    
+  const handlePayloadChange = (updatedPayloads: FlowPayload) => {
     setPayloads(updatedPayloads);
   };
 
   notification.config({
-    placement: 'topRight',
+    placement: "topRight",
     duration: 3,
   });
   return (
@@ -75,13 +71,17 @@ function App() {
         <FlowForm onFormChange={handleFormChange} />
         <BottomSection>
           <EditorSection>
-            <PayloadEditor 
-              selectedFlow={formData?.flowName || ''} 
+            <PayloadEditor
+              selectedFlow={formData?.flowName || ""}
               onPayloadChange={handlePayloadChange}
+              domain={formData?.domain || ""}
             />
           </EditorSection>
           <ReportSection>
-            <ReportGenerator formData={formData} payloads={payloads} />
+            <ReportGenerator
+              formData={formData}
+              payloads={payloads}
+            />
           </ReportSection>
         </BottomSection>
       </MainContent>

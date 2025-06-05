@@ -1,5 +1,5 @@
-import React from 'react';
-import styled from 'styled-components';
+import React from "react";
+import styled from "styled-components";
 
 const NavbarContainer = styled.div`
   display: flex;
@@ -16,7 +16,7 @@ const Logo = styled.div`
   font-weight: bold;
   display: flex;
   align-items: center;
-  
+
   img {
     height: 40px;
     margin-right: 10px;
@@ -36,31 +36,41 @@ const MenuItem = styled.a`
   color: var(--color-white);
   text-decoration: none;
   font-weight: 500;
-  
+
   &:hover {
     text-decoration: underline;
   }
 `;
 
-
-const openGmailCompose = (email: string, subject = '', body = '') => {
+const openGmailCompose = (email: string, subject = "", body = "") => {
   const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
     email
   )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-  window.open(url, '_blank');
+  window.open(url, "_blank");
 };
 
 const Navbar: React.FC = () => {
   return (
     <NavbarContainer>
-      <Logo>
-        LOG VALIDATION TOOL
-      </Logo>
+      <Logo>LOG VALIDATION TOOL</Logo>
       <Menu>
-        <MenuItem href="https://ondc-official.github.io/ONDC-RET-Specifications/" target="_blank">Developer Docs</MenuItem>
-        <MenuItem href="https://github.com/ONDC-Official" target="_blank">GitHub</MenuItem>
-        <MenuItem onClick={() => openGmailCompose('support@ondc.org', 'Support Request', '')}>Support</MenuItem>
+        <MenuItem
+          href="https://ondc-official.github.io/ONDC-RET-Specifications/"
+          target="_blank"
+        >
+          Developer Docs
+        </MenuItem>
+        <MenuItem href="https://github.com/ONDC-Official" target="_blank">
+          GitHub
+        </MenuItem>
+        <MenuItem
+          onClick={() =>
+            openGmailCompose("techsupport@ondc.org", "Support Request", "")
+          }
+        >
+          Support
+        </MenuItem>
         <MenuItem href="https://buddy.ondc.org/">Need Help?</MenuItem>
       </Menu>
     </NavbarContainer>
